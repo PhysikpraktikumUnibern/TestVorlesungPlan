@@ -120,7 +120,7 @@ let naechsteVorlesungElement = null;
 
 
 /*
-    Wandelt z.B. "16.02.2026"
+    Wandelt z.B. "16.05.2026"
     in ein echtes JavaScript-Datum um.
 */
 function datumAusDeutsch(text) {
@@ -140,14 +140,26 @@ function datumAusDeutsch(text) {
 
 
 /*
-    Liefert das heutige Datum ohne Uhrzeit.
+    TESTDATUM
+
+    Wir tun vorübergehend so,
+    als wäre heute der 09.05.2026.
+
+    Achtung:
+    JavaScript zählt Monate ab 0.
+
+    Januar   = 0
+    Februar  = 1
+    März     = 2
+    April    = 3
+    Mai      = 4
 */
 function heuteOhneUhrzeit() {
 
     return new Date(
-        2026,   // Jahr
-        4,      // Mai
-        9      // Tag
+        2026,
+        4,
+        9
     );
 }
 
@@ -157,15 +169,18 @@ async function ladePlanung() {
     try {
 
         // 1. index.json laden
-        const indexAntwort = await fetch("index.json");
+        const indexAntwort =
+            await fetch("index.json");
 
         if (!indexAntwort.ok) {
+
             throw new Error(
                 "index.json konnte nicht geladen werden."
             );
         }
 
-        const index = await indexAntwort.json();
+        const index =
+            await indexAntwort.json();
 
         const container =
             document.getElementById("inhalt");
@@ -173,9 +188,8 @@ async function ladePlanung() {
         const heute =
             heuteOhneUhrzeit();
 
-        console.log("HEUTE:", heute);
-
-        let naechsteGefunden = false;
+        let naechsteGefunden =
+            false;
 
 
         // 2. Alle Vorlesungen laden
@@ -192,6 +206,7 @@ async function ladePlanung() {
                 await fetch(eintrag.datei);
 
             if (!antwort.ok) {
+
                 throw new Error(
                     "Vorlesungsdatei konnte nicht geladen werden: "
                     + eintrag.datei
@@ -202,19 +217,14 @@ async function ladePlanung() {
                 await antwort.json();
 
 
-            // Datum auswerten
+            // Datum der Vorlesung bestimmen
             const vorlesungsDatum =
-                datumAusDeutsch(vorlesung.datum);
-
-            console.log(
-                "Vorlesung:",
-                vorlesung.datum,
-                "→",
-                vorlesungsDatum
+                datumAusDeutsch(
+                    vorlesung.datum
                 );
 
 
-            // 3. Vorlesung anzeigen
+            // Vorlesungs-Element erzeugen
             const vorlesungsElement =
                 document.createElement("div");
 
@@ -231,28 +241,33 @@ async function ladePlanung() {
                 vorlesungsDatum < heute
             ) {
 
-                vorlesungsElement.classList.add(
-                    "vergangen"
-                );
+                vorlesungsElement
+                    .classList
+                    .add("vergangen");
             }
 
 
-            // Erste heutige oder zukünftige
-            // Vorlesung = nächste Vorlesung
+            /*
+                Die erste Vorlesung,
+                deren Datum heute oder
+                später ist, wird als
+                nächste Vorlesung markiert.
+            */
             if (
                 !naechsteGefunden &&
                 vorlesungsDatum &&
                 vorlesungsDatum >= heute
             ) {
 
-                vorlesungsElement.classList.add(
-                    "naechste"
-                );
+                vorlesungsElement
+                    .classList
+                    .add("naechste");
 
                 naechsteVorlesungElement =
                     vorlesungsElement;
 
-                naechsteGefunden = true;
+                naechsteGefunden =
+                    true;
             }
 
 
@@ -270,9 +285,10 @@ async function ladePlanung() {
             `;
 
 
-            // 4. Lektionen anzeigen
+            // 3. Lektionen anzeigen
             for (
-                const lektion of vorlesung.lektionen
+                const lektion
+                of vorlesung.lektionen
             ) {
 
                 const lektionsElement =
@@ -288,9 +304,10 @@ async function ladePlanung() {
                 `;
 
 
-                // 5. Versuche anzeigen
+                // 4. Versuche anzeigen
                 for (
-                    const versuch of lektion.versuche
+                    const versuch
+                    of lektion.versuche
                 ) {
 
                     const versuchsElement =
@@ -322,14 +339,16 @@ async function ladePlanung() {
         }
 
 
-        document.getElementById("status").textContent =
-    "Testdatum: "
-    + heute.toLocaleDateString("de-CH")
-    + " | Nächste gefunden: "
-    + (naechsteGefunden ? "JA" : "NEIN");
+        document.getElementById(
+            "status"
+        ).textContent =
+            "Alle Vorlesungsdaten erfolgreich geladen.";
 
 
-        // Button aktivieren
+        /*
+            Wenn eine nächste Vorlesung
+            gefunden wurde:
+        */
         if (naechsteVorlesungElement) {
 
             const button =
@@ -340,6 +359,8 @@ async function ladePlanung() {
             button.style.display =
                 "inline-block";
 
+
+            // Button zum Zurückspringen
             button.addEventListener(
                 "click",
                 function() {
@@ -353,7 +374,11 @@ async function ladePlanung() {
             );
 
 
-            // Automatisch zur nächsten Vorlesung springen
+            /*
+                Nach dem vollständigen Laden
+                automatisch zur nächsten
+                Vorlesung springen.
+            */
             setTimeout(
                 function() {
 
