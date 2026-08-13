@@ -6,15 +6,47 @@
     <title>Vorlesungsplanung</title>
 
     <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
         body {
             font-family: Arial, sans-serif;
             max-width: 1000px;
             margin: 40px auto;
             padding: 0 20px;
+            background: #f4f6f8;
+            color: #222;
         }
 
         h1 {
-            margin-bottom: 30px;
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        #fehler {
+            color: red;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+
+        #zurNaechsten {
+            display: none;
+            margin-bottom: 25px;
+            padding: 10px 14px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #zurNaechsten:hover {
+            background: #eee;
         }
 
         .vorlesung {
@@ -22,6 +54,30 @@
             border-radius: 10px;
             padding: 20px;
             margin-bottom: 30px;
+            background: white;
+            scroll-margin-top: 30px;
+        }
+
+        .vorlesung.vergangen {
+            opacity: 0.75;
+        }
+
+        .vorlesung.naechste {
+            border: 3px solid #405d6f;
+        }
+
+        .marker {
+            display: none;
+            margin: -20px -20px 18px -20px;
+            padding: 8px 14px;
+            background: #405d6f;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .vorlesung.naechste .marker {
+            display: block;
         }
 
         .lektion {
@@ -38,11 +94,6 @@
             border: 1px solid #ddd;
             border-radius: 5px;
         }
-
-        #fehler {
-            color: red;
-            white-space: pre-wrap;
-        }
     </style>
 </head>
 
@@ -56,20 +107,64 @@
 
 <div id="fehler"></div>
 
+<button id="zurNaechsten">
+    Zur nächsten Vorlesung
+</button>
+
 <div id="inhalt"></div>
 
 
 <script>
 
+let naechsteVorlesungElement = null;
+
+
+/*
+    Wandelt z.B. "16.02.2026"
+    in ein echtes JavaScript-Datum um.
+*/
+function datumAusDeutsch(text) {
+
+    const teile = text.split(".");
+
+    if (teile.length !== 3) {
+        return null;
+    }
+
+    const tag = Number(teile[0]);
+    const monat = Number(teile[1]) - 1;
+    const jahr = Number(teile[2]);
+
+    return new Date(jahr, monat, tag);
+}
+
+
+/*
+    Liefert das heutige Datum ohne Uhrzeit.
+*/
+function heuteOhneUhrzeit() {
+
+    const heute = new Date();
+
+    return new Date(
+        heute.getFullYear(),
+        heute.getMonth(),
+        heute.getDate()
+    );
+}
+
+
 async function ladePlanung() {
 
     try {
 
-        // 1. Zuerst index.json laden
+        // 1. index.json laden
         const indexAntwort = await fetch("index.json");
 
         if (!indexAntwort.ok) {
-            throw new Error("index.json konnte nicht geladen werden.");
+            throw new Error(
+                "index.json konnte nicht geladen werden."
+            );
         }
 
         const index = await indexAntwort.json();
@@ -77,12 +172,24 @@ async function ladePlanung() {
         const container =
             document.getElementById("inhalt");
 
+        const heute =
+            heuteOhneUhrzeit();
 
-        // 2. Alle Vorlesungen aus index.json durchgehen
-        for (const eintrag of index.vorlesungen) {
+        let naechsteGefunden = false;
 
-            // Die dort angegebene JSON-Datei laden
-            const antwort = await fetch(eintrag.datei);
+
+        // 2. Alle Vorlesungen laden
+        for (
+            let i = 0;
+            i < index.vorlesungen.length;
+            i++
+        ) {
+
+            const eintrag =
+                index.vorlesungen[i];
+
+            const antwort =
+                await fetch(eintrag.datei);
 
             if (!antwort.ok) {
                 throw new Error(
@@ -91,30 +198,81 @@ async function ladePlanung() {
                 );
             }
 
-            const vorlesung = await antwort.json();
+            const vorlesung =
+                await antwort.json();
+
+
+            // Datum auswerten
+            const vorlesungsDatum =
+                datumAusDeutsch(vorlesung.datum);
 
 
             // 3. Vorlesung anzeigen
             const vorlesungsElement =
                 document.createElement("div");
 
-            vorlesungsElement.className = "vorlesung";
+            vorlesungsElement.className =
+                "vorlesung";
+
+            vorlesungsElement.id =
+                "vorlesung-" + i;
+
+
+            // Vergangene Vorlesungen markieren
+            if (
+                vorlesungsDatum &&
+                vorlesungsDatum < heute
+            ) {
+
+                vorlesungsElement.classList.add(
+                    "vergangen"
+                );
+            }
+
+
+            // Erste heutige oder zukünftige
+            // Vorlesung = nächste Vorlesung
+            if (
+                !naechsteGefunden &&
+                vorlesungsDatum &&
+                vorlesungsDatum >= heute
+            ) {
+
+                vorlesungsElement.classList.add(
+                    "naechste"
+                );
+
+                naechsteVorlesungElement =
+                    vorlesungsElement;
+
+                naechsteGefunden = true;
+            }
+
 
             vorlesungsElement.innerHTML = `
+
+                <div class="marker">
+                    NÄCHSTE VORLESUNG
+                </div>
+
                 <h2>
                     ${vorlesung.datum}
                     – Vorlesung ${vorlesung.vorlesung}
                 </h2>
+
             `;
 
 
-            // 4. Lektionen durchgehen
-            for (const lektion of vorlesung.lektionen) {
+            // 4. Lektionen anzeigen
+            for (
+                const lektion of vorlesung.lektionen
+            ) {
 
                 const lektionsElement =
                     document.createElement("div");
 
-                lektionsElement.className = "lektion";
+                lektionsElement.className =
+                    "lektion";
 
                 lektionsElement.innerHTML = `
                     <h3>
@@ -123,13 +281,16 @@ async function ladePlanung() {
                 `;
 
 
-                // 5. Versuche dieser Lektion
-                for (const versuch of lektion.versuche) {
+                // 5. Versuche anzeigen
+                for (
+                    const versuch of lektion.versuche
+                ) {
 
                     const versuchsElement =
                         document.createElement("div");
 
-                    versuchsElement.className = "versuch";
+                    versuchsElement.className =
+                        "versuch";
 
                     versuchsElement.textContent =
                         versuch.reihenfolge
@@ -157,14 +318,58 @@ async function ladePlanung() {
         document.getElementById("status").textContent =
             "Alle Vorlesungsdaten erfolgreich geladen.";
 
+
+        // Button aktivieren
+        if (naechsteVorlesungElement) {
+
+            const button =
+                document.getElementById(
+                    "zurNaechsten"
+                );
+
+            button.style.display =
+                "inline-block";
+
+            button.addEventListener(
+                "click",
+                function() {
+
+                    naechsteVorlesungElement
+                        .scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+                }
+            );
+
+
+            // Automatisch zur nächsten Vorlesung springen
+            setTimeout(
+                function() {
+
+                    naechsteVorlesungElement
+                        .scrollIntoView({
+                            behavior: "auto",
+                            block: "start"
+                        });
+
+                },
+                100
+            );
+        }
+
     }
 
     catch (fehler) {
 
-        document.getElementById("status").textContent =
+        document.getElementById(
+            "status"
+        ).textContent =
             "Fehler beim Laden.";
 
-        document.getElementById("fehler").textContent =
+        document.getElementById(
+            "fehler"
+        ).textContent =
             fehler.message;
 
         console.error(fehler);
