@@ -89,10 +89,63 @@
 
         .versuch {
             margin: 8px 0;
-            padding: 8px 12px;
+            padding: 10px 12px;
             background: white;
             border: 1px solid #ddd;
             border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .versuch:hover {
+            background: #eef2f4;
+        }
+
+        .versuch.aktiv {
+            border-color: #405d6f;
+            background: #eef2f4;
+        }
+
+        .versuch-kopf {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .versuch-pfeil {
+            font-size: 18px;
+            color: #666;
+        }
+
+        .versuch-detail {
+            display: none;
+            margin-top: 14px;
+            padding-top: 14px;
+            border-top: 1px solid #ddd;
+        }
+
+        .versuch.aktiv .versuch-detail {
+            display: block;
+        }
+
+        .versuch-text {
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+
+        .versuch-bild {
+            max-width: 100%;
+            max-height: 450px;
+            object-fit: contain;
+            display: block;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            background: white;
+        }
+
+        .kein-bild {
+            color: #777;
+            font-style: italic;
         }
     </style>
 </head>
@@ -120,8 +173,8 @@ let naechsteVorlesungElement = null;
 
 
 /*
-    Wandelt z.B. "16.05.2026"
-    in ein echtes JavaScript-Datum um.
+    Deutsches Datum wie 16.05.2026
+    in JavaScript-Datum umwandeln
 */
 function datumAusDeutsch(text) {
 
@@ -140,19 +193,8 @@ function datumAusDeutsch(text) {
 
 
 /*
-    TESTDATUM
-
-    Wir tun vorübergehend so,
-    als wäre heute der 09.05.2026.
-
-    Achtung:
-    JavaScript zählt Monate ab 0.
-
-    Januar   = 0
-    Februar  = 1
-    März     = 2
-    April    = 3
-    Mai      = 4
+    TESTDATUM:
+    09.05.2026
 */
 function heuteOhneUhrzeit() {
 
@@ -164,13 +206,150 @@ function heuteOhneUhrzeit() {
 }
 
 
+/*
+    Detailbereich eines Versuchs
+*/
+function erzeugeVersuchsElement(versuch) {
+
+    const versuchsElement =
+        document.createElement("div");
+
+    versuchsElement.className =
+        "versuch";
+
+
+    const kopf =
+        document.createElement("div");
+
+    kopf.className =
+        "versuch-kopf";
+
+
+    const titel =
+        document.createElement("div");
+
+    titel.textContent =
+        versuch.reihenfolge
+        + " – "
+        + versuch.versuch;
+
+
+    const pfeil =
+        document.createElement("div");
+
+    pfeil.className =
+        "versuch-pfeil";
+
+    pfeil.textContent =
+        "▾";
+
+
+    kopf.appendChild(titel);
+    kopf.appendChild(pfeil);
+
+
+    const detail =
+        document.createElement("div");
+
+    detail.className =
+        "versuch-detail";
+
+
+    const text =
+        document.createElement("div");
+
+    text.className =
+        "versuch-text";
+
+    text.textContent =
+        versuch.text || "Keine Beschreibung vorhanden.";
+
+    detail.appendChild(text);
+
+
+    if (
+        versuch.bild_vorhanden === 1 &&
+        versuch.bild
+    ) {
+
+        const bild =
+            document.createElement("img");
+
+        bild.className =
+            "versuch-bild";
+
+        bild.src =
+            versuch.bild;
+
+        bild.alt =
+            versuch.versuch;
+
+        detail.appendChild(bild);
+
+    } else {
+
+        const keinBild =
+            document.createElement("div");
+
+        keinBild.className =
+            "kein-bild";
+
+        keinBild.textContent =
+            "Kein Bild vorhanden.";
+
+        detail.appendChild(keinBild);
+    }
+
+
+    versuchsElement.appendChild(kopf);
+    versuchsElement.appendChild(detail);
+
+
+    versuchsElement.addEventListener(
+        "click",
+        function() {
+
+            const istAktiv =
+                versuchsElement
+                    .classList
+                    .contains("aktiv");
+
+
+            if (istAktiv) {
+
+                versuchsElement
+                    .classList
+                    .remove("aktiv");
+
+                pfeil.textContent =
+                    "▾";
+
+            } else {
+
+                versuchsElement
+                    .classList
+                    .add("aktiv");
+
+                pfeil.textContent =
+                    "▴";
+            }
+        }
+    );
+
+
+    return versuchsElement;
+}
+
+
 async function ladePlanung() {
 
     try {
 
-        // 1. index.json laden
         const indexAntwort =
-            await fetch("index.json");
+            await fetch(
+                "index.json",
+                { cache: "no-store" }
+            );
 
         if (!indexAntwort.ok) {
 
@@ -192,7 +371,6 @@ async function ladePlanung() {
             false;
 
 
-        // 2. Alle Vorlesungen laden
         for (
             let i = 0;
             i < index.vorlesungen.length;
@@ -203,7 +381,10 @@ async function ladePlanung() {
                 index.vorlesungen[i];
 
             const antwort =
-                await fetch(eintrag.datei);
+                await fetch(
+                    eintrag.datei,
+                    { cache: "no-store" }
+                );
 
             if (!antwort.ok) {
 
@@ -217,14 +398,12 @@ async function ladePlanung() {
                 await antwort.json();
 
 
-            // Datum der Vorlesung bestimmen
             const vorlesungsDatum =
                 datumAusDeutsch(
                     vorlesung.datum
                 );
 
 
-            // Vorlesungs-Element erzeugen
             const vorlesungsElement =
                 document.createElement("div");
 
@@ -235,7 +414,6 @@ async function ladePlanung() {
                 "vorlesung-" + i;
 
 
-            // Vergangene Vorlesungen markieren
             if (
                 vorlesungsDatum &&
                 vorlesungsDatum < heute
@@ -247,12 +425,6 @@ async function ladePlanung() {
             }
 
 
-            /*
-                Die erste Vorlesung,
-                deren Datum heute oder
-                später ist, wird als
-                nächste Vorlesung markiert.
-            */
             if (
                 !naechsteGefunden &&
                 vorlesungsDatum &&
@@ -285,7 +457,6 @@ async function ladePlanung() {
             `;
 
 
-            // 3. Lektionen anzeigen
             for (
                 const lektion
                 of vorlesung.lektionen
@@ -304,22 +475,15 @@ async function ladePlanung() {
                 `;
 
 
-                // 4. Versuche anzeigen
                 for (
                     const versuch
                     of lektion.versuche
                 ) {
 
                     const versuchsElement =
-                        document.createElement("div");
-
-                    versuchsElement.className =
-                        "versuch";
-
-                    versuchsElement.textContent =
-                        versuch.reihenfolge
-                        + " – "
-                        + versuch.versuch;
+                        erzeugeVersuchsElement(
+                            versuch
+                        );
 
                     lektionsElement.appendChild(
                         versuchsElement
@@ -345,10 +509,6 @@ async function ladePlanung() {
             "Alle Vorlesungsdaten erfolgreich geladen.";
 
 
-        /*
-            Wenn eine nächste Vorlesung
-            gefunden wurde:
-        */
         if (naechsteVorlesungElement) {
 
             const button =
@@ -359,8 +519,6 @@ async function ladePlanung() {
             button.style.display =
                 "inline-block";
 
-
-            // Button zum Zurückspringen
             button.addEventListener(
                 "click",
                 function() {
@@ -374,11 +532,6 @@ async function ladePlanung() {
             );
 
 
-            /*
-                Nach dem vollständigen Laden
-                automatisch zur nächsten
-                Vorlesung springen.
-            */
             setTimeout(
                 function() {
 
@@ -407,7 +560,9 @@ async function ladePlanung() {
         ).textContent =
             fehler.message;
 
-        console.error(fehler);
+        console.error(
+            fehler
+        );
     }
 }
 
