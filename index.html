@@ -1,14 +1,605 @@
-const vergangen = [];
-const aktuellUndZukunft = [];
+<!DOCTYPE html>
+<html lang="de">
 
-for (const eintrag of index.vorlesungen) {
-    const datum = datumAusDeutsch(eintrag.datum);
+<head>
+    <meta charset="UTF-8">
+    <title>Vorlesungsplanung</title>
 
-    if (datum < heute) {
-        vergangen.push(eintrag);
-    } else {
-        aktuellUndZukunft.push(eintrag);
+    <style>
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background: #f4f6f8;
+            color: #222;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+        }
+
+        #status {
+            margin-bottom: 20px;
+            color: #666;
+        }
+
+        #fehler {
+            color: red;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+        }
+
+        #zurNaechsten {
+            display: none;
+            margin-bottom: 25px;
+            padding: 10px 14px;
+            border: 1px solid #bbb;
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        #zurNaechsten:hover {
+            background: #eee;
+        }
+
+        .vorlesung {
+            border: 1px solid #bbb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+            background: white;
+            scroll-margin-top: 30px;
+        }
+
+        .vorlesung.vergangen {
+            opacity: 0.75;
+        }
+
+        .vorlesung.naechste {
+            border: 3px solid #405d6f;
+        }
+
+        .marker {
+            display: none;
+            margin: -20px -20px 18px -20px;
+            padding: 8px 14px;
+            background: #405d6f;
+            color: white;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        .vorlesung.naechste .marker {
+            display: block;
+        }
+
+        .lektion {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f4f4f4;
+            border-radius: 8px;
+        }
+
+        .versuch {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+<h1>Vorlesungsplanung</h1>
+
+<div id="status">
+    Daten werden geladen …
+</div>
+
+<div id="fehler"></div>
+
+<button id="zurNaechsten">
+    Zur nächsten Vorlesung
+</button>
+
+<div id="inhalt"></div>
+
+
+<script>
+
+let naechsteVorlesungElement = null;
+
+
+/*
+    Deutsches Datum wie 16.05.2026
+    in JavaScript-Datum umwandeln
+*/
+function datumAusDeutsch(text) {
+
+    const teile = text.split(".");
+
+    if (teile.length !== 3) {
+        return null;
+    }
+
+    const tag = Number(teile[0]);
+    const monat = Number(teile[1]) - 1;
+    const jahr = Number(teile[2]);
+
+    return new Date(jahr, monat, tag);
+}
+
+
+/*
+    TESTDATUM:
+    09.05.2026
+
+    Mai = 4, weil JavaScript
+    die Monate ab 0 zählt.
+*/
+function heuteOhneUhrzeit() {
+
+    return new Date(
+        2026,
+        4,
+        9
+    );
+}
+
+
+/*
+    Eine einzelne Vorlesungsdatei laden
+*/
+async function ladeVorlesungsDatei(eintrag) {
+
+    const antwort = await fetch(
+        eintrag.datei,
+        { cache: "no-store" }
+    );
+
+    if (!antwort.ok) {
+
+        throw new Error(
+            "Vorlesungsdatei konnte nicht geladen werden: "
+            + eintrag.datei
+        );
+    }
+
+    return await antwort.json();
+}
+
+
+/*
+    HTML-Element für eine Vorlesung erzeugen
+*/
+function erzeugeVorlesungsElement(
+    vorlesung,
+    istNaechste,
+    istVergangen
+) {
+
+    const vorlesungsElement =
+        document.createElement("div");
+
+    vorlesungsElement.className =
+        "vorlesung";
+
+
+    if (istVergangen) {
+
+        vorlesungsElement.classList.add(
+            "vergangen"
+        );
+    }
+
+
+    if (istNaechste) {
+
+        vorlesungsElement.classList.add(
+            "naechste"
+        );
+    }
+
+
+    vorlesungsElement.innerHTML = `
+
+        <div class="marker">
+            NÄCHSTE VORLESUNG
+        </div>
+
+        <h2>
+            ${vorlesung.datum}
+            – Vorlesung ${vorlesung.vorlesung}
+        </h2>
+
+    `;
+
+
+    /*
+        Lektionen
+    */
+    for (
+        const lektion
+        of vorlesung.lektionen
+    ) {
+
+        const lektionsElement =
+            document.createElement("div");
+
+        lektionsElement.className =
+            "lektion";
+
+        lektionsElement.innerHTML = `
+            <h3>
+                Lektion ${lektion.lektion}
+            </h3>
+        `;
+
+
+        /*
+            Versuche
+        */
+        for (
+            const versuch
+            of lektion.versuche
+        ) {
+
+            const versuchsElement =
+                document.createElement("div");
+
+            versuchsElement.className =
+                "versuch";
+
+            versuchsElement.textContent =
+                versuch.reihenfolge
+                + " – "
+                + versuch.versuch;
+
+            lektionsElement.appendChild(
+                versuchsElement
+            );
+        }
+
+
+        vorlesungsElement.appendChild(
+            lektionsElement
+        );
+    }
+
+
+    return vorlesungsElement;
+}
+
+
+/*
+    Hauptfunktion
+*/
+async function ladePlanung() {
+
+    try {
+
+        const container =
+            document.getElementById("inhalt");
+
+        const status =
+            document.getElementById("status");
+
+        const heute =
+            heuteOhneUhrzeit();
+
+
+        /*
+            1.
+            index.json laden
+        */
+        const indexAntwort =
+            await fetch(
+                "index.json",
+                { cache: "no-store" }
+            );
+
+        if (!indexAntwort.ok) {
+
+            throw new Error(
+                "index.json konnte nicht geladen werden."
+            );
+        }
+
+        const index =
+            await indexAntwort.json();
+
+
+        /*
+            2.
+            Einträge nach Datum sortieren
+        */
+        const eintraege =
+            [...index.vorlesungen];
+
+        eintraege.sort(
+            function(a, b) {
+
+                return (
+                    datumAusDeutsch(a.datum)
+                    -
+                    datumAusDeutsch(b.datum)
+                );
+            }
+        );
+
+
+        /*
+            3.
+            Vergangenheit und
+            aktuell/Zukunft trennen
+        */
+        const vergangen = [];
+        const aktuellUndZukunft = [];
+
+        for (const eintrag of eintraege) {
+
+            const datum =
+                datumAusDeutsch(
+                    eintrag.datum
+                );
+
+            if (
+                datum &&
+                datum < heute
+            ) {
+
+                vergangen.push(
+                    eintrag
+                );
+
+            } else {
+
+                aktuellUndZukunft.push(
+                    eintrag
+                );
+            }
+        }
+
+
+        /*
+            4.
+            Nächste Vorlesung bestimmen
+        */
+        const naechste =
+            aktuellUndZukunft.length > 0
+            ? aktuellUndZukunft[0]
+            : null;
+
+
+        /*
+            5.
+            NÄCHSTE VORLESUNG
+            zuerst laden
+        */
+        if (naechste) {
+
+            status.textContent =
+                "Nächste Vorlesung wird geladen …";
+
+            const daten =
+                await ladeVorlesungsDatei(
+                    naechste
+                );
+
+            const element =
+                erzeugeVorlesungsElement(
+                    daten,
+                    true,
+                    false
+                );
+
+            container.appendChild(
+                element
+            );
+
+            naechsteVorlesungElement =
+                element;
+
+
+            /*
+                Sofort zur nächsten
+                Vorlesung positionieren
+            */
+            element.scrollIntoView({
+                behavior: "auto",
+                block: "start"
+            });
+
+
+            /*
+                Button aktivieren
+            */
+            const button =
+                document.getElementById(
+                    "zurNaechsten"
+                );
+
+            button.style.display =
+                "inline-block";
+
+            button.addEventListener(
+                "click",
+                function() {
+
+                    naechsteVorlesungElement
+                        .scrollIntoView({
+                            behavior: "smooth",
+                            block: "start"
+                        });
+                }
+            );
+        }
+
+
+        /*
+            6.
+            ZUKÜNFTIGE Vorlesungen
+            danach laden
+        */
+        status.textContent =
+            "Weitere Vorlesungen werden geladen …";
+
+
+        const zukunftOhneNaechste =
+            naechste
+            ? aktuellUndZukunft.slice(1)
+            : aktuellUndZukunft;
+
+
+        const zukunftDaten =
+            await Promise.all(
+
+                zukunftOhneNaechste.map(
+                    ladeVorlesungsDatei
+                )
+            );
+
+
+        for (
+            let i = 0;
+            i < zukunftDaten.length;
+            i++
+        ) {
+
+            const element =
+                erzeugeVorlesungsElement(
+                    zukunftDaten[i],
+                    false,
+                    false
+                );
+
+            container.appendChild(
+                element
+            );
+        }
+
+
+        /*
+            7.
+            VERGANGENE Vorlesungen
+            zuletzt laden
+        */
+        status.textContent =
+            "Vergangene Vorlesungen werden ergänzt …";
+
+
+        const vergangenDaten =
+            await Promise.all(
+
+                vergangen.map(
+                    ladeVorlesungsDatei
+                )
+            );
+
+
+        /*
+            Position der nächsten Vorlesung
+            vor dem Einfügen merken.
+        */
+        let positionVorher = null;
+
+        if (naechsteVorlesungElement) {
+
+            positionVorher =
+                naechsteVorlesungElement
+                    .getBoundingClientRect()
+                    .top;
+        }
+
+
+        /*
+            Vergangenheit von hinten
+            nach vorne einfügen,
+            damit Reihenfolge stimmt.
+        */
+        for (
+            let i = vergangenDaten.length - 1;
+            i >= 0;
+            i--
+        ) {
+
+            const element =
+                erzeugeVorlesungsElement(
+                    vergangenDaten[i],
+                    false,
+                    true
+                );
+
+            container.insertBefore(
+                element,
+                container.firstChild
+            );
+        }
+
+
+        /*
+            Scrollposition korrigieren,
+            damit die nächste Vorlesung
+            sichtbar an derselben Stelle bleibt.
+        */
+        if (
+            naechsteVorlesungElement &&
+            positionVorher !== null
+        ) {
+
+            const positionNachher =
+                naechsteVorlesungElement
+                    .getBoundingClientRect()
+                    .top;
+
+            const differenz =
+                positionNachher
+                -
+                positionVorher;
+
+            window.scrollBy(
+                0,
+                differenz
+            );
+        }
+
+
+        status.textContent =
+            "Alle Vorlesungsdaten erfolgreich geladen.";
+
+    }
+
+    catch (fehler) {
+
+        document.getElementById(
+            "status"
+        ).textContent =
+            "Fehler beim Laden.";
+
+        document.getElementById(
+            "fehler"
+        ).textContent =
+            fehler.message;
+
+        console.error(
+            fehler
+        );
     }
 }
 
-const naechste = aktuellUndZukunft[0];
+
+ladePlanung();
+
+</script>
+
+</body>
+</html>
