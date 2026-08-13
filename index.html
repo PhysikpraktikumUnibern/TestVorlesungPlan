@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <title>Vorlesungsplanung</title>
@@ -7,7 +8,7 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            max-width: 900px;
+            max-width: 1000px;
             margin: 40px auto;
             padding: 0 20px;
         }
@@ -17,20 +18,25 @@
         }
 
         .vorlesung {
+            border: 1px solid #bbb;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .lektion {
+            margin-top: 20px;
             padding: 15px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
+            background: #f4f4f4;
             border-radius: 8px;
         }
 
-        .datum {
-            font-weight: bold;
-        }
-
-        .datei {
-            margin-top: 5px;
-            color: #666;
-            font-size: 14px;
+        .versuch {
+            margin: 8px 0;
+            padding: 8px 12px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
 
         #fehler {
@@ -45,57 +51,111 @@
 <h1>Vorlesungsplanung</h1>
 
 <div id="status">
-    index.json wird geladen …
+    Daten werden geladen …
 </div>
 
 <div id="fehler"></div>
 
-<div id="vorlesungen"></div>
+<div id="inhalt"></div>
 
 
 <script>
 
-async function ladeIndex() {
+async function ladePlanung() {
 
     try {
 
-        const antwort = await fetch("index.json");
+        // 1. Zuerst index.json laden
+        const indexAntwort = await fetch("index.json");
 
-        if (!antwort.ok) {
-            throw new Error(
-                "index.json konnte nicht geladen werden."
+        if (!indexAntwort.ok) {
+            throw new Error("index.json konnte nicht geladen werden.");
+        }
+
+        const index = await indexAntwort.json();
+
+        const container =
+            document.getElementById("inhalt");
+
+
+        // 2. Alle Vorlesungen aus index.json durchgehen
+        for (const eintrag of index.vorlesungen) {
+
+            // Die dort angegebene JSON-Datei laden
+            const antwort = await fetch(eintrag.datei);
+
+            if (!antwort.ok) {
+                throw new Error(
+                    "Vorlesungsdatei konnte nicht geladen werden: "
+                    + eintrag.datei
+                );
+            }
+
+            const vorlesung = await antwort.json();
+
+
+            // 3. Vorlesung anzeigen
+            const vorlesungsElement =
+                document.createElement("div");
+
+            vorlesungsElement.className = "vorlesung";
+
+            vorlesungsElement.innerHTML = `
+                <h2>
+                    ${vorlesung.datum}
+                    – Vorlesung ${vorlesung.vorlesung}
+                </h2>
+            `;
+
+
+            // 4. Lektionen durchgehen
+            for (const lektion of vorlesung.lektionen) {
+
+                const lektionsElement =
+                    document.createElement("div");
+
+                lektionsElement.className = "lektion";
+
+                lektionsElement.innerHTML = `
+                    <h3>
+                        Lektion ${lektion.lektion}
+                    </h3>
+                `;
+
+
+                // 5. Versuche dieser Lektion
+                for (const versuch of lektion.versuche) {
+
+                    const versuchsElement =
+                        document.createElement("div");
+
+                    versuchsElement.className = "versuch";
+
+                    versuchsElement.textContent =
+                        versuch.reihenfolge
+                        + " – "
+                        + versuch.versuch;
+
+                    lektionsElement.appendChild(
+                        versuchsElement
+                    );
+                }
+
+
+                vorlesungsElement.appendChild(
+                    lektionsElement
+                );
+            }
+
+
+            container.appendChild(
+                vorlesungsElement
             );
         }
 
-        const daten = await antwort.json();
 
         document.getElementById("status").textContent =
-            "index.json erfolgreich geladen.";
-
-        const container =
-            document.getElementById("vorlesungen");
-
-
-        daten.vorlesungen.forEach(function(vorlesung) {
-
-            const element =
-                document.createElement("div");
-
-            element.className = "vorlesung";
-
-            element.innerHTML = `
-                <div class="datum">
-                    ${vorlesung.datum}
-                </div>
-
-                <div class="datei">
-                    ${vorlesung.datei}
-                </div>
-            `;
-
-            container.appendChild(element);
-
-        });
+            "Alle Vorlesungsdaten erfolgreich geladen.";
 
     }
 
@@ -108,13 +168,11 @@ async function ladeIndex() {
             fehler.message;
 
         console.error(fehler);
-
     }
-
 }
 
 
-ladeIndex();
+ladePlanung();
 
 </script>
 
