@@ -1,5 +1,122 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Vorlesungsplanung</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        .vorlesung {
+            padding: 15px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+        }
+
+        .datum {
+            font-weight: bold;
+        }
+
+        .datei {
+            margin-top: 5px;
+            color: #666;
+            font-size: 14px;
+        }
+
+        #fehler {
+            color: red;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+
+<body>
+
 <h1>Vorlesungsplanung</h1>
 
 <div id="status">
     index.json wird geladen …
 </div>
+
+<div id="fehler"></div>
+
+<div id="vorlesungen"></div>
+
+
+<script>
+
+async function ladeIndex() {
+
+    try {
+
+        const antwort = await fetch("index.json");
+
+        if (!antwort.ok) {
+            throw new Error(
+                "index.json konnte nicht geladen werden."
+            );
+        }
+
+        const daten = await antwort.json();
+
+        document.getElementById("status").textContent =
+            "index.json erfolgreich geladen.";
+
+        const container =
+            document.getElementById("vorlesungen");
+
+
+        daten.vorlesungen.forEach(function(vorlesung) {
+
+            const element =
+                document.createElement("div");
+
+            element.className = "vorlesung";
+
+            element.innerHTML = `
+                <div class="datum">
+                    ${vorlesung.datum}
+                </div>
+
+                <div class="datei">
+                    ${vorlesung.datei}
+                </div>
+            `;
+
+            container.appendChild(element);
+
+        });
+
+    }
+
+    catch (fehler) {
+
+        document.getElementById("status").textContent =
+            "Fehler beim Laden.";
+
+        document.getElementById("fehler").textContent =
+            fehler.message;
+
+        console.error(fehler);
+
+    }
+
+}
+
+
+ladeIndex();
+
+</script>
+
+</body>
+</html>
