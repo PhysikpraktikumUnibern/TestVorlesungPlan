@@ -120,8 +120,8 @@ let naechsteVorlesungElement = null;
 
 
 /*
-    Deutsches Datum wie 16.05.2026
-    in JavaScript-Datum umwandeln
+    Wandelt z.B. "16.05.2026"
+    in ein echtes JavaScript-Datum um.
 */
 function datumAusDeutsch(text) {
 
@@ -140,11 +140,19 @@ function datumAusDeutsch(text) {
 
 
 /*
-    TESTDATUM:
-    09.05.2026
+    TESTDATUM
 
-    Mai = 4, weil JavaScript
-    die Monate ab 0 zählt.
+    Wir tun vorübergehend so,
+    als wäre heute der 09.05.2026.
+
+    Achtung:
+    JavaScript zählt Monate ab 0.
+
+    Januar   = 0
+    Februar  = 1
+    März     = 2
+    April    = 3
+    Mai      = 4
 */
 function heuteOhneUhrzeit() {
 
@@ -156,156 +164,13 @@ function heuteOhneUhrzeit() {
 }
 
 
-/*
-    Eine einzelne Vorlesungsdatei laden
-*/
-async function ladeVorlesungsDatei(eintrag) {
-
-    const antwort = await fetch(
-        eintrag.datei,
-        { cache: "no-store" }
-    );
-
-    if (!antwort.ok) {
-
-        throw new Error(
-            "Vorlesungsdatei konnte nicht geladen werden: "
-            + eintrag.datei
-        );
-    }
-
-    return await antwort.json();
-}
-
-
-/*
-    HTML-Element für eine Vorlesung erzeugen
-*/
-function erzeugeVorlesungsElement(
-    vorlesung,
-    istNaechste,
-    istVergangen
-) {
-
-    const vorlesungsElement =
-        document.createElement("div");
-
-    vorlesungsElement.className =
-        "vorlesung";
-
-
-    if (istVergangen) {
-
-        vorlesungsElement.classList.add(
-            "vergangen"
-        );
-    }
-
-
-    if (istNaechste) {
-
-        vorlesungsElement.classList.add(
-            "naechste"
-        );
-    }
-
-
-    vorlesungsElement.innerHTML = `
-
-        <div class="marker">
-            NÄCHSTE VORLESUNG
-        </div>
-
-        <h2>
-            ${vorlesung.datum}
-            – Vorlesung ${vorlesung.vorlesung}
-        </h2>
-
-    `;
-
-
-    /*
-        Lektionen
-    */
-    for (
-        const lektion
-        of vorlesung.lektionen
-    ) {
-
-        const lektionsElement =
-            document.createElement("div");
-
-        lektionsElement.className =
-            "lektion";
-
-        lektionsElement.innerHTML = `
-            <h3>
-                Lektion ${lektion.lektion}
-            </h3>
-        `;
-
-
-        /*
-            Versuche
-        */
-        for (
-            const versuch
-            of lektion.versuche
-        ) {
-
-            const versuchsElement =
-                document.createElement("div");
-
-            versuchsElement.className =
-                "versuch";
-
-            versuchsElement.textContent =
-                versuch.reihenfolge
-                + " – "
-                + versuch.versuch;
-
-            lektionsElement.appendChild(
-                versuchsElement
-            );
-        }
-
-
-        vorlesungsElement.appendChild(
-            lektionsElement
-        );
-    }
-
-
-    return vorlesungsElement;
-}
-
-
-/*
-    Hauptfunktion
-*/
 async function ladePlanung() {
 
     try {
 
-        const container =
-            document.getElementById("inhalt");
-
-        const status =
-            document.getElementById("status");
-
-        const heute =
-            heuteOhneUhrzeit();
-
-
-        /*
-            1.
-            index.json laden
-        */
+        // 1. index.json laden
         const indexAntwort =
-            await fetch(
-                "index.json",
-                { cache: "no-store" }
-            );
+            await fetch("index.json");
 
         if (!indexAntwort.ok) {
 
@@ -317,112 +182,175 @@ async function ladePlanung() {
         const index =
             await indexAntwort.json();
 
+        const container =
+            document.getElementById("inhalt");
 
-        /*
-            2.
-            Einträge nach Datum sortieren
-        */
-        const eintraege =
-            [...index.vorlesungen];
+        const heute =
+            heuteOhneUhrzeit();
 
-        eintraege.sort(
-            function(a, b) {
+        let naechsteGefunden =
+            false;
 
-                return (
-                    datumAusDeutsch(a.datum)
-                    -
-                    datumAusDeutsch(b.datum)
+
+        // 2. Alle Vorlesungen laden
+        for (
+            let i = 0;
+            i < index.vorlesungen.length;
+            i++
+        ) {
+
+            const eintrag =
+                index.vorlesungen[i];
+
+            const antwort =
+                await fetch(eintrag.datei);
+
+            if (!antwort.ok) {
+
+                throw new Error(
+                    "Vorlesungsdatei konnte nicht geladen werden: "
+                    + eintrag.datei
                 );
             }
-        );
+
+            const vorlesung =
+                await antwort.json();
 
 
-        /*
-            3.
-            Vergangenheit und
-            aktuell/Zukunft trennen
-        */
-        const vergangen = [];
-        const aktuellUndZukunft = [];
-
-        for (const eintrag of eintraege) {
-
-            const datum =
+            // Datum der Vorlesung bestimmen
+            const vorlesungsDatum =
                 datumAusDeutsch(
-                    eintrag.datum
+                    vorlesung.datum
                 );
 
+
+            // Vorlesungs-Element erzeugen
+            const vorlesungsElement =
+                document.createElement("div");
+
+            vorlesungsElement.className =
+                "vorlesung";
+
+            vorlesungsElement.id =
+                "vorlesung-" + i;
+
+
+            // Vergangene Vorlesungen markieren
             if (
-                datum &&
-                datum < heute
+                vorlesungsDatum &&
+                vorlesungsDatum < heute
             ) {
 
-                vergangen.push(
-                    eintrag
-                );
+                vorlesungsElement
+                    .classList
+                    .add("vergangen");
+            }
 
-            } else {
 
-                aktuellUndZukunft.push(
-                    eintrag
+            /*
+                Die erste Vorlesung,
+                deren Datum heute oder
+                später ist, wird als
+                nächste Vorlesung markiert.
+            */
+            if (
+                !naechsteGefunden &&
+                vorlesungsDatum &&
+                vorlesungsDatum >= heute
+            ) {
+
+                vorlesungsElement
+                    .classList
+                    .add("naechste");
+
+                naechsteVorlesungElement =
+                    vorlesungsElement;
+
+                naechsteGefunden =
+                    true;
+            }
+
+
+            vorlesungsElement.innerHTML = `
+
+                <div class="marker">
+                    NÄCHSTE VORLESUNG
+                </div>
+
+                <h2>
+                    ${vorlesung.datum}
+                    – Vorlesung ${vorlesung.vorlesung}
+                </h2>
+
+            `;
+
+
+            // 3. Lektionen anzeigen
+            for (
+                const lektion
+                of vorlesung.lektionen
+            ) {
+
+                const lektionsElement =
+                    document.createElement("div");
+
+                lektionsElement.className =
+                    "lektion";
+
+                lektionsElement.innerHTML = `
+                    <h3>
+                        Lektion ${lektion.lektion}
+                    </h3>
+                `;
+
+
+                // 4. Versuche anzeigen
+                for (
+                    const versuch
+                    of lektion.versuche
+                ) {
+
+                    const versuchsElement =
+                        document.createElement("div");
+
+                    versuchsElement.className =
+                        "versuch";
+
+                    versuchsElement.textContent =
+                        versuch.reihenfolge
+                        + " – "
+                        + versuch.versuch;
+
+                    lektionsElement.appendChild(
+                        versuchsElement
+                    );
+                }
+
+
+                vorlesungsElement.appendChild(
+                    lektionsElement
                 );
             }
+
+
+            container.appendChild(
+                vorlesungsElement
+            );
         }
 
 
-        /*
-            4.
-            Nächste Vorlesung bestimmen
-        */
-        const naechste =
-            aktuellUndZukunft.length > 0
-            ? aktuellUndZukunft[0]
-            : null;
+        document.getElementById(
+            "status"
+        ).textContent =
+            "Alle Vorlesungsdaten erfolgreich geladen.";
 
 
         /*
-            5.
-            NÄCHSTE VORLESUNG
-            zuerst laden
+            Wenn eine nächste Vorlesung
+            gefunden wurde:
         */
-        if (naechste) {
+        if (naechsteVorlesungElement) {
 
-            status.textContent =
-                "Nächste Vorlesung wird geladen …";
-
-            const daten =
-                await ladeVorlesungsDatei(
-                    naechste
-                );
-
-            const element =
-                erzeugeVorlesungsElement(
-                    daten,
-                    true,
-                    false
-                );
-
-            container.appendChild(
-                element
-            );
-
-            naechsteVorlesungElement =
-                element;
-
-
-            /*
-                Sofort zur nächsten
-                Vorlesung positionieren
-            */
-            element.scrollIntoView({
-                behavior: "auto",
-                block: "start"
-            });
-
-
-            /*
-                Button aktivieren
-            */
             const button =
                 document.getElementById(
                     "zurNaechsten"
@@ -431,6 +359,8 @@ async function ladePlanung() {
             button.style.display =
                 "inline-block";
 
+
+            // Button zum Zurückspringen
             button.addEventListener(
                 "click",
                 function() {
@@ -442,139 +372,26 @@ async function ladePlanung() {
                         });
                 }
             );
-        }
 
 
-        /*
-            6.
-            ZUKÜNFTIGE Vorlesungen
-            danach laden
-        */
-        status.textContent =
-            "Weitere Vorlesungen werden geladen …";
+            /*
+                Nach dem vollständigen Laden
+                automatisch zur nächsten
+                Vorlesung springen.
+            */
+            setTimeout(
+                function() {
 
+                    naechsteVorlesungElement
+                        .scrollIntoView({
+                            behavior: "auto",
+                            block: "start"
+                        });
 
-        const zukunftOhneNaechste =
-            naechste
-            ? aktuellUndZukunft.slice(1)
-            : aktuellUndZukunft;
-
-
-        const zukunftDaten =
-            await Promise.all(
-
-                zukunftOhneNaechste.map(
-                    ladeVorlesungsDatei
-                )
-            );
-
-
-        for (
-            let i = 0;
-            i < zukunftDaten.length;
-            i++
-        ) {
-
-            const element =
-                erzeugeVorlesungsElement(
-                    zukunftDaten[i],
-                    false,
-                    false
-                );
-
-            container.appendChild(
-                element
+                },
+                100
             );
         }
-
-
-        /*
-            7.
-            VERGANGENE Vorlesungen
-            zuletzt laden
-        */
-        status.textContent =
-            "Vergangene Vorlesungen werden ergänzt …";
-
-
-        const vergangenDaten =
-            await Promise.all(
-
-                vergangen.map(
-                    ladeVorlesungsDatei
-                )
-            );
-
-
-        /*
-            Position der nächsten Vorlesung
-            vor dem Einfügen merken.
-        */
-        let positionVorher = null;
-
-        if (naechsteVorlesungElement) {
-
-            positionVorher =
-                naechsteVorlesungElement
-                    .getBoundingClientRect()
-                    .top;
-        }
-
-
-        /*
-            Vergangenheit von hinten
-            nach vorne einfügen,
-            damit Reihenfolge stimmt.
-        */
-        for (
-            let i = vergangenDaten.length - 1;
-            i >= 0;
-            i--
-        ) {
-
-            const element =
-                erzeugeVorlesungsElement(
-                    vergangenDaten[i],
-                    false,
-                    true
-                );
-
-            container.insertBefore(
-                element,
-                container.firstChild
-            );
-        }
-
-
-        /*
-            Scrollposition korrigieren,
-            damit die nächste Vorlesung
-            sichtbar an derselben Stelle bleibt.
-        */
-        if (
-            naechsteVorlesungElement &&
-            positionVorher !== null
-        ) {
-
-            const positionNachher =
-                naechsteVorlesungElement
-                    .getBoundingClientRect()
-                    .top;
-
-            const differenz =
-                positionNachher
-                -
-                positionVorher;
-
-            window.scrollBy(
-                0,
-                differenz
-            );
-        }
-
-
-        status.textContent =
-            "Alle Vorlesungsdaten erfolgreich geladen.";
 
     }
 
@@ -590,9 +407,7 @@ async function ladePlanung() {
         ).textContent =
             fehler.message;
 
-        console.error(
-            fehler
-        );
+        console.error(fehler);
     }
 }
 
