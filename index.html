@@ -321,7 +321,7 @@
     </button>
 
     <button id="vergleichButton">
-        Vergleich einblenden
+        Schwester-Vorlesung einblenden
     </button>
 
 </div>
@@ -697,7 +697,7 @@ function erzeugeVorlesung(
     } else {
 
         serienHinweis.textContent =
-            "Vergleichsserie";
+            "Schwester-Vorlesung";
     }
 
 
@@ -1222,8 +1222,8 @@ async function zeichnePlanung() {
 
         vergleichButton.textContent =
             vergleichAnzeigen
-            ? "Vergleich ausblenden"
-            : "Vergleich einblenden";
+            ? "Schwester-Vorlesung ausblenden"
+            : "Schwester-Vorlesung einblenden";
 
     } else {
 
@@ -1330,8 +1330,8 @@ async function starteSeite() {
                         )
                         .textContent =
                             vergleichAnzeigen
-                            ? "Vergleich wird geladen …"
-                            : "Vergleich wird ausgeblendet …";
+                            ? "Schwester-Vorlesung wird geladen …"
+                            : "Schwester-Vorlesung wird ausgeblendet …";
 
 
                     await zeichnePlanung();
