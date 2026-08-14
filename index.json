@@ -1,1 +1,1 @@
-{	"vorlesungen" : 	[		{			"datei" : "vorlesungen/6_2026_1.json",			"datum" : "16.02.2026",			"jahr" : 2026,			"stammserie" : 6,			"vorlesungsnummer" : 1		},		{			"datei" : "vorlesungen/6_2026_2.json",			"datum" : "16.03.2026",			"jahr" : 2026,			"stammserie" : 6,			"vorlesungsnummer" : 2		}	]}
+? * Line 1, Column 1  Syntax error: value, object or array expected.* Line 1, Column 3  Extra non-whitespace after JSON value.
