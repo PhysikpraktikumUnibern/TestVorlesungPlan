@@ -12,15 +12,15 @@
 
         body {
             font-family: Arial, sans-serif;
-            max-width: 1000px;
-            margin: 40px auto;
+            max-width: 1500px;
+            margin: 30px auto;
             padding: 0 20px;
             background: #f4f6f8;
             color: #222;
         }
 
         h1 {
-            margin-bottom: 10px;
+            margin-bottom: 8px;
         }
 
         #status {
@@ -49,42 +49,96 @@
             background: #eee;
         }
 
-        .vorlesung {
-            border: 1px solid #bbb;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-            background: white;
-            scroll-margin-top: 30px;
+        .tag {
+            margin-bottom: 36px;
+            scroll-margin-top: 25px;
         }
 
-        .vorlesung.vergangen {
-            opacity: 0.75;
+        .tag.naechster-tag {
+            outline: 3px solid #405d6f;
+            outline-offset: 8px;
+            border-radius: 12px;
         }
 
-        .vorlesung.naechste {
-            border: 3px solid #405d6f;
-        }
-
-        .marker {
+        .tag-marker {
             display: none;
-            margin: -20px -20px 18px -20px;
-            padding: 8px 14px;
             background: #405d6f;
             color: white;
             font-weight: bold;
-            font-size: 13px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
         }
 
-        .vorlesung.naechste .marker {
-            display: block;
+        .tag.naechster-tag .tag-marker {
+            display: inline-block;
+        }
+
+        .tag-datum {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 14px;
+        }
+
+        .vorlesungs-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 18px;
+        }
+
+        .vorlesungs-grid.zwei {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .vorlesung {
+            border: 1px solid #bbb;
+            border-radius: 12px;
+            background: white;
+            overflow: hidden;
+        }
+
+        .vorlesung.vergangen {
+            opacity: 0.78;
+        }
+
+        .vorlesung.vergleich {
+            border-color: #7a8790;
+        }
+
+        .vorlesung-kopf {
+            padding: 16px 18px;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .vorlesung-kopf h2 {
+            margin: 0 0 6px 0;
+        }
+
+        .serie-hinweis {
+            display: inline-block;
+            margin-top: 6px;
+            padding: 4px 8px;
+            border-radius: 6px;
+            background: #eef2f4;
+            color: #53616b;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .serie-hinweis.vergleich {
+            background: #eceff1;
+            color: #5d6971;
         }
 
         .lektion {
-            margin-top: 20px;
-            padding: 15px;
-            background: #f4f4f4;
+            margin: 14px;
+            padding: 14px;
+            background: #f5f6f7;
             border-radius: 8px;
+        }
+
+        .lektion h3 {
+            margin-top: 0;
         }
 
         .versuch {
@@ -92,7 +146,7 @@
             padding: 10px 12px;
             background: white;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 6px;
             cursor: pointer;
         }
 
@@ -106,14 +160,23 @@
         }
 
         .versuch-kopf {
-            display: flex;
-            justify-content: space-between;
-            gap: 15px;
+            display: grid;
+            grid-template-columns: 70px 1fr 24px;
+            gap: 10px;
             align-items: center;
         }
 
+        .reihenfolge {
+            font-weight: bold;
+            color: #405d6f;
+        }
+
+        .versuch-name {
+            font-weight: 600;
+        }
+
         .versuch-pfeil {
-            font-size: 18px;
+            text-align: right;
             color: #666;
         }
 
@@ -125,27 +188,39 @@
         }
 
         .versuch.aktiv .versuch-detail {
-            display: block;
+            display: grid;
+            grid-template-columns: minmax(220px, 38%) 1fr;
+            gap: 18px;
+        }
+
+        .versuch-bild {
+            width: 100%;
+            max-height: 360px;
+            object-fit: contain;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: white;
         }
 
         .versuch-text {
             line-height: 1.5;
-            margin-bottom: 15px;
-        }
-
-        .versuch-bild {
-            max-width: 100%;
-            max-height: 450px;
-            object-fit: contain;
-            display: block;
-            border-radius: 6px;
-            border: 1px solid #ddd;
-            background: white;
+            white-space: pre-wrap;
         }
 
         .kein-bild {
             color: #777;
             font-style: italic;
+        }
+
+        @media (max-width: 950px) {
+
+            .vorlesungs-grid.zwei {
+                grid-template-columns: 1fr;
+            }
+
+            .versuch.aktiv .versuch-detail {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
@@ -169,12 +244,11 @@
 
 <script>
 
-let naechsteVorlesungElement = null;
+let naechsterTagElement = null;
 
 
 /*
-    Deutsches Datum wie 16.05.2026
-    in JavaScript-Datum umwandeln
+    Datum im Format TT.MM.JJJJ
 */
 function datumAusDeutsch(text) {
 
@@ -193,7 +267,7 @@ function datumAusDeutsch(text) {
 
 
 /*
-    TESTDATUM:
+    TESTDATUM
     09.05.2026
 */
 function heuteOhneUhrzeit() {
@@ -207,7 +281,46 @@ function heuteOhneUhrzeit() {
 
 
 /*
-    Detailbereich eines Versuchs
+    Prüfen, ob zwei Serien miteinander gekoppelt sind
+*/
+function serienGehörenZusammen(a, b) {
+
+    if (!a || !b) {
+        return false;
+    }
+
+    return (
+        a.vergleichsserie === b.stammserie
+        ||
+        b.vergleichsserie === a.stammserie
+    );
+}
+
+
+/*
+    Einzelne Vorlesungsdatei laden
+*/
+async function ladeVorlesungsDatei(eintrag) {
+
+    const antwort = await fetch(
+        eintrag.datei,
+        { cache: "no-store" }
+    );
+
+    if (!antwort.ok) {
+
+        throw new Error(
+            "Vorlesungsdatei konnte nicht geladen werden: "
+            + eintrag.datei
+        );
+    }
+
+    return await antwort.json();
+}
+
+
+/*
+    Versuch erzeugen
 */
 function erzeugeVersuchsElement(versuch) {
 
@@ -225,13 +338,24 @@ function erzeugeVersuchsElement(versuch) {
         "versuch-kopf";
 
 
-    const titel =
+    const reihenfolge =
         document.createElement("div");
 
-    titel.textContent =
-        versuch.reihenfolge
-        + " – "
-        + versuch.versuch;
+    reihenfolge.className =
+        "reihenfolge";
+
+    reihenfolge.textContent =
+        versuch.reihenfolge || "";
+
+
+    const name =
+        document.createElement("div");
+
+    name.className =
+        "versuch-name";
+
+    name.textContent =
+        versuch.versuch || "";
 
 
     const pfeil =
@@ -244,7 +368,8 @@ function erzeugeVersuchsElement(versuch) {
         "▾";
 
 
-    kopf.appendChild(titel);
+    kopf.appendChild(reihenfolge);
+    kopf.appendChild(name);
     kopf.appendChild(pfeil);
 
 
@@ -255,20 +380,13 @@ function erzeugeVersuchsElement(versuch) {
         "versuch-detail";
 
 
-    const text =
+    const bildBereich =
         document.createElement("div");
-
-    text.className =
-        "versuch-text";
-
-    text.textContent =
-        versuch.text || "Keine Beschreibung vorhanden.";
-
-    detail.appendChild(text);
 
 
     if (
-        versuch.bild_vorhanden === 1 &&
+        versuch.bild_vorhanden === 1
+        &&
         versuch.bild
     ) {
 
@@ -282,9 +400,11 @@ function erzeugeVersuchsElement(versuch) {
             versuch.bild;
 
         bild.alt =
-            versuch.versuch;
+            versuch.versuch || "Versuchsbild";
 
-        detail.appendChild(bild);
+        bildBereich.appendChild(
+            bild
+        );
 
     } else {
 
@@ -297,42 +417,55 @@ function erzeugeVersuchsElement(versuch) {
         keinBild.textContent =
             "Kein Bild vorhanden.";
 
-        detail.appendChild(keinBild);
+        bildBereich.appendChild(
+            keinBild
+        );
     }
 
 
-    versuchsElement.appendChild(kopf);
-    versuchsElement.appendChild(detail);
+    const text =
+        document.createElement("div");
+
+    text.className =
+        "versuch-text";
+
+    text.textContent =
+        versuch.text
+        ||
+        "Keine Beschreibung vorhanden.";
+
+
+    detail.appendChild(
+        bildBereich
+    );
+
+    detail.appendChild(
+        text
+    );
+
+
+    versuchsElement.appendChild(
+        kopf
+    );
+
+    versuchsElement.appendChild(
+        detail
+    );
 
 
     versuchsElement.addEventListener(
         "click",
         function() {
 
-            const istAktiv =
+            const aktiv =
                 versuchsElement
                     .classList
-                    .contains("aktiv");
+                    .toggle("aktiv");
 
-
-            if (istAktiv) {
-
-                versuchsElement
-                    .classList
-                    .remove("aktiv");
-
-                pfeil.textContent =
-                    "▾";
-
-            } else {
-
-                versuchsElement
-                    .classList
-                    .add("aktiv");
-
-                pfeil.textContent =
-                    "▴";
-            }
+            pfeil.textContent =
+                aktiv
+                ? "▴"
+                : "▾";
         }
     );
 
@@ -341,15 +474,166 @@ function erzeugeVersuchsElement(versuch) {
 }
 
 
+/*
+    Einzelne Vorlesung erzeugen
+*/
+function erzeugeVorlesungsElement(
+    indexEintrag,
+    vorlesungsDaten,
+    istVergleich,
+    istVergangen
+) {
+
+    const element =
+        document.createElement("div");
+
+    element.className =
+        "vorlesung";
+
+
+    if (istVergleich) {
+
+        element.classList.add(
+            "vergleich"
+        );
+    }
+
+
+    if (istVergangen) {
+
+        element.classList.add(
+            "vergangen"
+        );
+    }
+
+
+    const kopf =
+        document.createElement("div");
+
+    kopf.className =
+        "vorlesung-kopf";
+
+
+    const titel =
+        document.createElement("h2");
+
+    titel.textContent =
+        "Vorlesung "
+        + vorlesungsDaten.vorlesung;
+
+
+    const hinweis =
+        document.createElement("div");
+
+    hinweis.className =
+        "serie-hinweis";
+
+
+    if (istVergleich) {
+
+        hinweis.classList.add(
+            "vergleich"
+        );
+
+        hinweis.textContent =
+            "Vergleichsserie";
+
+    } else {
+
+        hinweis.textContent =
+            "Stammserie "
+            + indexEintrag.stammserie;
+    }
+
+
+    kopf.appendChild(
+        titel
+    );
+
+    kopf.appendChild(
+        hinweis
+    );
+
+    element.appendChild(
+        kopf
+    );
+
+
+    for (
+        const lektion
+        of vorlesungsDaten.lektionen
+    ) {
+
+        const lektionsElement =
+            document.createElement("div");
+
+        lektionsElement.className =
+            "lektion";
+
+
+        const titel =
+            document.createElement("h3");
+
+        titel.textContent =
+            "Lektion "
+            + lektion.lektion;
+
+
+        lektionsElement.appendChild(
+            titel
+        );
+
+
+        for (
+            const versuch
+            of lektion.versuche
+        ) {
+
+            lektionsElement.appendChild(
+                erzeugeVersuchsElement(
+                    versuch
+                )
+            );
+        }
+
+
+        element.appendChild(
+            lektionsElement
+        );
+    }
+
+
+    return element;
+}
+
+
+/*
+    Hauptfunktion
+*/
 async function ladePlanung() {
 
     try {
+
+        const status =
+            document.getElementById(
+                "status"
+            );
+
+        const container =
+            document.getElementById(
+                "inhalt"
+            );
+
+        const heute =
+            heuteOhneUhrzeit();
+
 
         const indexAntwort =
             await fetch(
                 "index.json",
                 { cache: "no-store" }
             );
+
 
         if (!indexAntwort.ok) {
 
@@ -358,158 +642,238 @@ async function ladePlanung() {
             );
         }
 
+
         const index =
             await indexAntwort.json();
 
-        const container =
-            document.getElementById("inhalt");
 
-        const heute =
-            heuteOhneUhrzeit();
+        /*
+            Index chronologisch sortieren
+        */
+        const eintraege =
+            [...index.vorlesungen];
 
-        let naechsteGefunden =
+
+        eintraege.sort(
+            function(a, b) {
+
+                return (
+                    datumAusDeutsch(a.datum)
+                    -
+                    datumAusDeutsch(b.datum)
+                );
+            }
+        );
+
+
+        /*
+            Nach Datum gruppieren
+        */
+        const gruppen =
+            new Map();
+
+
+        for (const eintrag of eintraege) {
+
+            if (
+                !gruppen.has(
+                    eintrag.datum
+                )
+            ) {
+
+                gruppen.set(
+                    eintrag.datum,
+                    []
+                );
+            }
+
+
+            gruppen
+                .get(eintrag.datum)
+                .push(eintrag);
+        }
+
+
+        let naechsterTagGefunden =
             false;
 
 
         for (
-            let i = 0;
-            i < index.vorlesungen.length;
-            i++
+            const [datumText, tagEintraege]
+            of gruppen
         ) {
 
-            const eintrag =
-                index.vorlesungen[i];
-
-            const antwort =
-                await fetch(
-                    eintrag.datei,
-                    { cache: "no-store" }
-                );
-
-            if (!antwort.ok) {
-
-                throw new Error(
-                    "Vorlesungsdatei konnte nicht geladen werden: "
-                    + eintrag.datei
-                );
-            }
-
-            const vorlesung =
-                await antwort.json();
-
-
-            const vorlesungsDatum =
+            const tagDatum =
                 datumAusDeutsch(
-                    vorlesung.datum
+                    datumText
                 );
 
-
-            const vorlesungsElement =
-                document.createElement("div");
-
-            vorlesungsElement.className =
-                "vorlesung";
-
-            vorlesungsElement.id =
-                "vorlesung-" + i;
+            const istVergangen =
+                tagDatum
+                &&
+                tagDatum < heute;
 
 
-            if (
-                vorlesungsDatum &&
-                vorlesungsDatum < heute
-            ) {
+            const tagElement =
+                document.createElement("section");
 
-                vorlesungsElement
-                    .classList
-                    .add("vergangen");
-            }
+            tagElement.className =
+                "tag";
 
 
             if (
-                !naechsteGefunden &&
-                vorlesungsDatum &&
-                vorlesungsDatum >= heute
+                !naechsterTagGefunden
+                &&
+                tagDatum
+                &&
+                tagDatum >= heute
             ) {
 
-                vorlesungsElement
-                    .classList
-                    .add("naechste");
+                tagElement.classList.add(
+                    "naechster-tag"
+                );
 
-                naechsteVorlesungElement =
-                    vorlesungsElement;
+                naechsterTagElement =
+                    tagElement;
 
-                naechsteGefunden =
+                naechsterTagGefunden =
                     true;
             }
 
 
-            vorlesungsElement.innerHTML = `
+            const marker =
+                document.createElement("div");
 
-                <div class="marker">
-                    NÄCHSTE VORLESUNG
-                </div>
+            marker.className =
+                "tag-marker";
 
-                <h2>
-                    ${vorlesung.datum}
-                    – Vorlesung ${vorlesung.vorlesung}
-                </h2>
-
-            `;
+            marker.textContent =
+                "NÄCHSTE VORLESUNG";
 
 
-            for (
-                const lektion
-                of vorlesung.lektionen
+            const datumTitel =
+                document.createElement("div");
+
+            datumTitel.className =
+                "tag-datum";
+
+            datumTitel.textContent =
+                datumText;
+
+
+            const grid =
+                document.createElement("div");
+
+            grid.className =
+                "vorlesungs-grid";
+
+
+            /*
+                Alle Vorlesungsdateien
+                dieses Datums laden
+            */
+            const daten =
+                await Promise.all(
+
+                    tagEintraege.map(
+                        ladeVorlesungsDatei
+                    )
+                );
+
+
+            /*
+                Entscheiden:
+                gibt es an diesem Datum
+                ein Vergleichspaar?
+            */
+            let vergleichsPaar =
+                false;
+
+
+            if (
+                tagEintraege.length === 2
+                &&
+                serienGehörenZusammen(
+                    tagEintraege[0],
+                    tagEintraege[1]
+                )
             ) {
 
-                const lektionsElement =
-                    document.createElement("div");
+                vergleichsPaar =
+                    true;
 
-                lektionsElement.className =
-                    "lektion";
-
-                lektionsElement.innerHTML = `
-                    <h3>
-                        Lektion ${lektion.lektion}
-                    </h3>
-                `;
-
-
-                for (
-                    const versuch
-                    of lektion.versuche
-                ) {
-
-                    const versuchsElement =
-                        erzeugeVersuchsElement(
-                            versuch
-                        );
-
-                    lektionsElement.appendChild(
-                        versuchsElement
-                    );
-                }
-
-
-                vorlesungsElement.appendChild(
-                    lektionsElement
+                grid.classList.add(
+                    "zwei"
                 );
             }
 
 
+            for (
+                let i = 0;
+                i < tagEintraege.length;
+                i++
+            ) {
+
+                const eintrag =
+                    tagEintraege[i];
+
+                const vorlesungsDaten =
+                    daten[i];
+
+
+                /*
+                    Bei einem Vergleichspaar:
+                    erste = Stammserie
+                    zweite = Vergleichsserie
+                */
+                const istVergleich =
+                    vergleichsPaar
+                    &&
+                    i === 1;
+
+
+                const vorlesungsElement =
+                    erzeugeVorlesungsElement(
+                        eintrag,
+                        vorlesungsDaten,
+                        istVergleich,
+                        istVergangen
+                    );
+
+
+                grid.appendChild(
+                    vorlesungsElement
+                );
+            }
+
+
+            tagElement.appendChild(
+                marker
+            );
+
+            tagElement.appendChild(
+                datumTitel
+            );
+
+            tagElement.appendChild(
+                grid
+            );
+
+
             container.appendChild(
-                vorlesungsElement
+                tagElement
             );
         }
 
 
-        document.getElementById(
-            "status"
-        ).textContent =
+        status.textContent =
             "Alle Vorlesungsdaten erfolgreich geladen.";
 
 
-        if (naechsteVorlesungElement) {
+        /*
+            Button und automatischer Sprung
+        */
+        if (naechsterTagElement) {
 
             const button =
                 document.getElementById(
@@ -519,11 +883,12 @@ async function ladePlanung() {
             button.style.display =
                 "inline-block";
 
+
             button.addEventListener(
                 "click",
                 function() {
 
-                    naechsteVorlesungElement
+                    naechsterTagElement
                         .scrollIntoView({
                             behavior: "smooth",
                             block: "start"
@@ -535,7 +900,7 @@ async function ladePlanung() {
             setTimeout(
                 function() {
 
-                    naechsteVorlesungElement
+                    naechsterTagElement
                         .scrollIntoView({
                             behavior: "auto",
                             block: "start"
@@ -555,10 +920,12 @@ async function ladePlanung() {
         ).textContent =
             "Fehler beim Laden.";
 
+
         document.getElementById(
             "fehler"
         ).textContent =
             fehler.message;
+
 
         console.error(
             fehler
