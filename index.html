@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="de">
 
 <head>
@@ -40,7 +39,7 @@
 
 
         /* --------------------------------------------------
-           Bedienung oben
+           Steuerung
         -------------------------------------------------- */
 
         .steuerung {
@@ -63,17 +62,14 @@
             background: #eef1f3;
         }
 
-        #vergleichButton {
-            display: none;
-        }
-
+        #vergleichButton,
         #naechsteButton {
             display: none;
         }
 
 
         /* --------------------------------------------------
-           Tagesblock
+           Tagesblöcke
         -------------------------------------------------- */
 
         .tag {
@@ -109,9 +105,6 @@
             border: 2px solid #b7c0c6;
         }
 
-
-        /* Eigene Stammvorlesungsserie */
-
         .vorlesung.eigen {
             border-color: #405d6f;
         }
@@ -119,9 +112,6 @@
         .vorlesung.eigen .vorlesung-kopf {
             background: #edf3f6;
         }
-
-
-        /* Vergleichs-/Tochterserie */
 
         .vorlesung.vergleich {
             border-color: #b87932;
@@ -131,20 +121,13 @@
             background: #fff4e7;
         }
 
-
-        /* Vergangene Termine */
-
         .vorlesung.vergangen {
             opacity: 0.76;
         }
 
-
-        /* Nächste eigene Vorlesung */
-
         .vorlesung.naechste {
             box-shadow: 0 0 0 4px rgba(64, 93, 111, 0.18);
         }
-
 
         .vorlesung-kopf {
             padding: 15px 18px;
@@ -259,17 +242,34 @@
 
         .versuch.aktiv .versuch-detail {
             display: grid;
-            grid-template-columns: minmax(220px, 38%) 1fr;
+            grid-template-columns: minmax(180px, 34%) 1fr;
             gap: 18px;
         }
 
-        .versuch-bild {
+        .thumbnail-bereich {
+            min-width: 0;
+        }
+
+        .versuch-thumbnail {
             width: 100%;
-            max-height: 380px;
+            max-width: 500px;
+            max-height: 340px;
             object-fit: contain;
             background: white;
             border: 1px solid #ddd;
             border-radius: 8px;
+            cursor: zoom-in;
+            display: block;
+        }
+
+        .versuch-thumbnail:hover {
+            opacity: 0.9;
+        }
+
+        .bild-hinweis {
+            margin-top: 7px;
+            font-size: 12px;
+            color: #777;
         }
 
         .versuch-text {
@@ -280,6 +280,53 @@
         .kein-bild {
             color: #777;
             font-style: italic;
+        }
+
+
+        /* --------------------------------------------------
+           Lightbox
+        -------------------------------------------------- */
+
+        #lightbox {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            background: rgba(0, 0, 0, 0.88);
+            align-items: center;
+            justify-content: center;
+            padding: 30px;
+            box-sizing: border-box;
+        }
+
+        #lightbox.aktiv {
+            display: flex;
+        }
+
+        #lightboxBild {
+            max-width: 95vw;
+            max-height: 92vh;
+            object-fit: contain;
+            background: white;
+            box-shadow: 0 0 25px rgba(0, 0, 0, 0.5);
+        }
+
+        #lightboxSchliessen {
+            position: fixed;
+            top: 15px;
+            right: 22px;
+            border: 0;
+            background: transparent;
+            color: white;
+            font-size: 38px;
+            line-height: 1;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+
+        #lightboxSchliessen:hover {
+            background: transparent;
+            opacity: 0.75;
         }
 
 
@@ -296,6 +343,10 @@
             .versuch.aktiv .versuch-detail {
                 grid-template-columns: 1fr;
             }
+
+            .versuch-thumbnail {
+                max-width: 100%;
+            }
         }
 
     </style>
@@ -303,7 +354,6 @@
 
 
 <body>
-
 
 <h1>Vorlesungsplanung</h1>
 
@@ -321,13 +371,29 @@
     </button>
 
     <button id="vergleichButton">
-        Schwester-Vorlesung einblenden
+        Vergleich einblenden
     </button>
 
 </div>
 
 
 <div id="inhalt"></div>
+
+
+<!-- Grossbild-Ansicht -->
+
+<div id="lightbox">
+
+    <button id="lightboxSchliessen"
+            aria-label="Bild schliessen">
+        ×
+    </button>
+
+    <img id="lightboxBild"
+         src=""
+         alt="Versuchsbild">
+
+</div>
 
 
 <script>
@@ -348,9 +414,8 @@ let vergleichAnzeigen = false;
 let naechstesElement = null;
 
 
-
 /* ==========================================================
-   SERIE AUS DER URL HOLEN
+   SERIE AUS URL
 
    Beispiel:
    ?serie=6
@@ -367,9 +432,8 @@ eigeneSerie =
     );
 
 
-
 /* ==========================================================
-   DATUM TT.MM.JJJJ → JavaScript Date
+   DATUM
 ========================================================== */
 
 function datumAusDeutsch(text) {
@@ -393,14 +457,6 @@ function datumAusDeutsch(text) {
 }
 
 
-
-/* ==========================================================
-   HEUTIGES DATUM
-
-   Für den produktiven Betrieb wird hier das echte
-   Datum des Geräts verwendet.
-========================================================== */
-
 function heuteOhneUhrzeit() {
 
     const jetzt =
@@ -414,9 +470,8 @@ function heuteOhneUhrzeit() {
 }
 
 
-
 /* ==========================================================
-   VORLESUNGSDATEI LADEN
+   JSON EINER VORLESUNG LADEN
 ========================================================== */
 
 async function ladeVorlesungsDatei(eintrag) {
@@ -440,6 +495,119 @@ async function ladeVorlesungsDatei(eintrag) {
     return await antwort.json();
 }
 
+
+/* ==========================================================
+   LIGHTBOX
+========================================================== */
+
+function oeffneLightbox(bildPfad, altText) {
+
+    if (!bildPfad) {
+        return;
+    }
+
+    const lightbox =
+        document.getElementById(
+            "lightbox"
+        );
+
+    const bild =
+        document.getElementById(
+            "lightboxBild"
+        );
+
+    bild.src =
+        bildPfad;
+
+    bild.alt =
+        altText || "Versuchsbild";
+
+    lightbox.classList.add(
+        "aktiv"
+    );
+
+    document.body.style.overflow =
+        "hidden";
+}
+
+
+function schliesseLightbox() {
+
+    const lightbox =
+        document.getElementById(
+            "lightbox"
+        );
+
+    const bild =
+        document.getElementById(
+            "lightboxBild"
+        );
+
+    lightbox.classList.remove(
+        "aktiv"
+    );
+
+    /*
+        Grossbild wieder freigeben.
+        Dadurch bleibt es nicht unnötig
+        im aktiven DOM-Element hängen.
+    */
+
+    bild.src =
+        "";
+
+    document.body.style.overflow =
+        "";
+}
+
+
+document
+    .getElementById(
+        "lightboxSchliessen"
+    )
+    .addEventListener(
+        "click",
+        function(event) {
+
+            event.stopPropagation();
+
+            schliesseLightbox();
+        }
+    );
+
+
+document
+    .getElementById(
+        "lightbox"
+    )
+    .addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                event.target.id
+                ===
+                "lightbox"
+            ) {
+
+                schliesseLightbox();
+            }
+        }
+    );
+
+
+document.addEventListener(
+    "keydown",
+    function(event) {
+
+        if (
+            event.key === "Escape"
+        ) {
+
+            schliesseLightbox();
+        }
+    }
+);
 
 
 /* ==========================================================
@@ -505,9 +673,9 @@ function erzeugeVersuch(versuch) {
     );
 
 
-    /* -----------------------
+    /* ------------------------------------------------------
        Detailbereich
-    ----------------------- */
+    ------------------------------------------------------ */
 
     const detail =
         document.createElement("div");
@@ -519,6 +687,9 @@ function erzeugeVersuch(versuch) {
     const bildBereich =
         document.createElement("div");
 
+    bildBereich.className =
+        "thumbnail-bereich";
+
 
     if (
         versuch.bild_vorhanden === 1
@@ -526,20 +697,90 @@ function erzeugeVersuch(versuch) {
         versuch.bild
     ) {
 
-        const bild =
+        const thumbnail =
             document.createElement("img");
 
-        bild.className =
-            "versuch-bild";
+        thumbnail.className =
+            "versuch-thumbnail";
 
-        bild.src =
+
+        /*
+            Wichtig:
+
+            Zuerst Thumbnail verwenden.
+
+            Falls bei älteren JSON-Dateien
+            "thumbnail" noch fehlt, wird
+            automatisch das grosse Bild benutzt.
+        */
+
+        thumbnail.src =
+            versuch.thumbnail
+            ||
             versuch.bild;
 
-        bild.alt =
-            versuch.versuch || "Versuchsbild";
+
+        /*
+            Das Bild wird erst geladen,
+            wenn es in die Nähe des
+            sichtbaren Bereichs kommt.
+        */
+
+        thumbnail.loading =
+            "lazy";
+
+
+        thumbnail.decoding =
+            "async";
+
+
+        thumbnail.alt =
+            versuch.versuch
+            ||
+            "Versuchsbild";
+
+
+        /*
+            Klick aufs Thumbnail:
+            grosses Original laden
+        */
+
+        thumbnail.addEventListener(
+            "click",
+            function(event) {
+
+                /*
+                    Verhindert, dass gleichzeitig
+                    der Versuch wieder zugeklappt wird.
+                */
+
+                event.stopPropagation();
+
+
+                oeffneLightbox(
+                    versuch.bild,
+                    versuch.versuch
+                );
+            }
+        );
+
 
         bildBereich.appendChild(
-            bild
+            thumbnail
+        );
+
+
+        const hinweis =
+            document.createElement("div");
+
+        hinweis.className =
+            "bild-hinweis";
+
+        hinweis.textContent =
+            "Bild anklicken für grosse Ansicht";
+
+        bildBereich.appendChild(
+            hinweis
         );
 
     } else {
@@ -589,9 +830,9 @@ function erzeugeVersuch(versuch) {
     );
 
 
-    /* -----------------------
-       Öffnen / Schliessen
-    ----------------------- */
+    /*
+        Versuch öffnen / schliessen
+    */
 
     element.addEventListener(
         "click",
@@ -614,9 +855,8 @@ function erzeugeVersuch(versuch) {
 }
 
 
-
 /* ==========================================================
-   VORLESUNGSKARTE ERZEUGEN
+   VORLESUNG ERZEUGEN
 ========================================================== */
 
 function erzeugeVorlesung(
@@ -636,7 +876,9 @@ function erzeugeVorlesung(
 
 
     const element =
-        document.createElement("article");
+        document.createElement(
+            "article"
+        );
 
     element.className =
         "vorlesung " + typ;
@@ -662,19 +904,19 @@ function erzeugeVorlesung(
     }
 
 
-    /* -----------------------
-       Kopf
-    ----------------------- */
-
     const kopf =
-        document.createElement("div");
+        document.createElement(
+            "div"
+        );
 
     kopf.className =
         "vorlesung-kopf";
 
 
     const titel =
-        document.createElement("h2");
+        document.createElement(
+            "h2"
+        );
 
     titel.textContent =
         "Vorlesung "
@@ -682,7 +924,9 @@ function erzeugeVorlesung(
 
 
     const serienHinweis =
-        document.createElement("span");
+        document.createElement(
+            "span"
+        );
 
     serienHinweis.className =
         "serien-hinweis "
@@ -697,7 +941,7 @@ function erzeugeVorlesung(
     } else {
 
         serienHinweis.textContent =
-            "Schwester-Vorlesung";
+            "Vergleichsserie";
     }
 
 
@@ -713,7 +957,9 @@ function erzeugeVorlesung(
     if (istNaechste) {
 
         const marker =
-            document.createElement("span");
+            document.createElement(
+                "span"
+            );
 
         marker.className =
             "naechste-marker";
@@ -732,24 +978,24 @@ function erzeugeVorlesung(
     );
 
 
-    /* -----------------------
-       Lektionen
-    ----------------------- */
-
     for (
         const lektion
         of daten.lektionen
     ) {
 
         const lektionsElement =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
         lektionsElement.className =
             "lektion";
 
 
         const titel =
-            document.createElement("h3");
+            document.createElement(
+                "h3"
+            );
 
         titel.textContent =
             "Lektion "
@@ -784,7 +1030,6 @@ function erzeugeVorlesung(
 }
 
 
-
 /* ==========================================================
    VERGLEICHSSERIE BESTIMMEN
 ========================================================== */
@@ -803,7 +1048,9 @@ function bestimmeVergleichsSerie(
             &&
             eintrag.vergleichsserie !== null
             &&
-            Number(eintrag.vergleichsserie) !== 0
+            Number(
+                eintrag.vergleichsserie
+            ) !== 0
         ) {
 
             return Number(
@@ -812,14 +1059,12 @@ function bestimmeVergleichsSerie(
         }
     }
 
-
     return null;
 }
 
 
-
 /* ==========================================================
-   PLANUNG ANZEIGEN
+   PLANUNG ZEICHNEN
 ========================================================== */
 
 async function zeichnePlanung() {
@@ -840,9 +1085,9 @@ async function zeichnePlanung() {
         heuteOhneUhrzeit();
 
 
-    /* -----------------------
-       Eigene Serie
-    ----------------------- */
+    /* ------------------------------------------------------
+       Eigene Vorlesungen
+    ------------------------------------------------------ */
 
     const eigeneEintraege =
         indexDaten.vorlesungen.filter(
@@ -851,7 +1096,8 @@ async function zeichnePlanung() {
                 Number(
                     eintrag.stammserie
                 )
-                === eigeneSerie
+                ===
+                eigeneSerie
         );
 
 
@@ -862,22 +1108,26 @@ async function zeichnePlanung() {
         throw new Error(
             "Für die Stammvorlesungsserie "
             + eigeneSerie
-            + " wurden keine Vorlesungen im Index gefunden."
+            + " wurden keine Vorlesungen gefunden."
         );
     }
 
 
     eigeneEintraege.sort(
         (a, b) =>
-            datumAusDeutsch(a.datum)
+            datumAusDeutsch(
+                a.datum
+            )
             -
-            datumAusDeutsch(b.datum)
+            datumAusDeutsch(
+                b.datum
+            )
     );
 
 
-    /* -----------------------
+    /* ------------------------------------------------------
        Vergleichsserie
-    ----------------------- */
+    ------------------------------------------------------ */
 
     vergleichsSerie =
         bestimmeVergleichsSerie(
@@ -902,23 +1152,27 @@ async function zeichnePlanung() {
                     Number(
                         eintrag.stammserie
                     )
-                    === vergleichsSerie
+                    ===
+                    vergleichsSerie
             );
 
 
         vergleichsEintraege.sort(
             (a, b) =>
-                datumAusDeutsch(a.datum)
+                datumAusDeutsch(
+                    a.datum
+                )
                 -
-                datumAusDeutsch(b.datum)
+                datumAusDeutsch(
+                    b.datum
+                )
         );
     }
 
 
-    /* -----------------------
-       Alle sichtbaren Einträge
-       zusammenführen
-    ----------------------- */
+    /* ------------------------------------------------------
+       Sichtbare Einträge
+    ------------------------------------------------------ */
 
     const sichtbareEintraege =
         [];
@@ -951,12 +1205,9 @@ async function zeichnePlanung() {
     }
 
 
-    /* -----------------------
+    /* ------------------------------------------------------
        Chronologisch sortieren
-
-       Wenn Datum identisch:
-       eigene Serie zuerst
-    ----------------------- */
+    ------------------------------------------------------ */
 
     sichtbareEintraege.sort(
         function(a, b) {
@@ -1007,10 +1258,9 @@ async function zeichnePlanung() {
     );
 
 
-    /* -----------------------
-       Nächste EIGENE Vorlesung
-       bestimmen
-    ----------------------- */
+    /* ------------------------------------------------------
+       Nächste eigene Vorlesung
+    ------------------------------------------------------ */
 
     let naechsterEigenerEintrag =
         null;
@@ -1041,9 +1291,9 @@ async function zeichnePlanung() {
     }
 
 
-    /* -----------------------
+    /* ------------------------------------------------------
        Nach Datum gruppieren
-    ----------------------- */
+    ------------------------------------------------------ */
 
     const tage =
         new Map();
@@ -1068,17 +1318,24 @@ async function zeichnePlanung() {
 
 
         tage
-            .get(eintrag.datum)
-            .push(eintrag);
+            .get(
+                eintrag.datum
+            )
+            .push(
+                eintrag
+            );
     }
 
 
-    /* -----------------------
-       Tagesblöcke zeichnen
-    ----------------------- */
+    /* ------------------------------------------------------
+       Tagesblöcke
+    ------------------------------------------------------ */
 
     for (
-        const [datumText, eintraege]
+        const [
+            datumText,
+            eintraege
+        ]
         of tage
     ) {
 
@@ -1112,22 +1369,27 @@ async function zeichnePlanung() {
             "tag-grid";
 
 
-        /*
-            Wenn am selben Tag eigene +
-            Vergleichsserie vorhanden sind:
-            nebeneinander anzeigen.
-        */
-
         const hatEigen =
             eintraege.some(
-                e => e.typ === "eigen"
+                e =>
+                    e.typ
+                    ===
+                    "eigen"
             );
 
         const hatVergleich =
             eintraege.some(
-                e => e.typ === "vergleich"
+                e =>
+                    e.typ
+                    ===
+                    "vergleich"
             );
 
+
+        /*
+            Gleiches Datum:
+            nebeneinander
+        */
 
         if (
             hatEigen
@@ -1141,11 +1403,6 @@ async function zeichnePlanung() {
         }
 
 
-        /* -----------------------
-           Dateien dieses Tages
-           laden
-        ----------------------- */
-
         for (
             const eintrag
             of eintraege
@@ -1158,7 +1415,9 @@ async function zeichnePlanung() {
 
 
             const istNaechste =
-                eintrag.typ === "eigen"
+                eintrag.typ
+                    ===
+                    "eigen"
                 &&
                 naechsterEigenerEintrag
                 &&
@@ -1203,9 +1462,9 @@ async function zeichnePlanung() {
     }
 
 
-    /* -----------------------
-       Buttons
-    ----------------------- */
+    /* ------------------------------------------------------
+       Buttons aktualisieren
+    ------------------------------------------------------ */
 
     const vergleichButton =
         document.getElementById(
@@ -1222,8 +1481,8 @@ async function zeichnePlanung() {
 
         vergleichButton.textContent =
             vergleichAnzeigen
-            ? "Schwester-Vorlesung ausblenden"
-            : "Schwester-Vorlesung einblenden";
+            ? "Vergleich ausblenden"
+            : "Vergleich einblenden";
 
     } else {
 
@@ -1248,22 +1507,16 @@ async function zeichnePlanung() {
         naechsteButton.style.display =
             "none";
     }
-
 }
 
 
-
 /* ==========================================================
-   HAUPTFUNKTION
+   SEITE STARTEN
 ========================================================== */
 
 async function starteSeite() {
 
     try {
-
-        /* -----------------------
-           URL prüfen
-        ----------------------- */
 
         if (
             !eigeneSerie
@@ -1282,10 +1535,6 @@ async function starteSeite() {
             );
         }
 
-
-        /* -----------------------
-           Index laden
-        ----------------------- */
 
         const antwort =
             await fetch(
@@ -1308,9 +1557,7 @@ async function starteSeite() {
             await antwort.json();
 
 
-        /* -----------------------
-           Vergleichsbutton
-        ----------------------- */
+        /* Vergleich */
 
         document
             .getElementById(
@@ -1330,8 +1577,8 @@ async function starteSeite() {
                         )
                         .textContent =
                             vergleichAnzeigen
-                            ? "Schwester-Vorlesung wird geladen …"
-                            : "Schwester-Vorlesung wird ausgeblendet …";
+                            ? "Vergleich wird geladen …"
+                            : "Vergleich wird ausgeblendet …";
 
 
                     await zeichnePlanung();
@@ -1342,14 +1589,13 @@ async function starteSeite() {
                             "status"
                         )
                         .textContent =
-                            "Vorlesungsplanung";
+                            "Stammvorlesungsserie "
+                            + eigeneSerie;
                 }
             );
 
 
-        /* -----------------------
-           Nächste Vorlesung
-        ----------------------- */
+        /* Nächste Vorlesung */
 
         document
             .getElementById(
@@ -1376,10 +1622,6 @@ async function starteSeite() {
             );
 
 
-        /* -----------------------
-           Erste Darstellung
-        ----------------------- */
-
         await zeichnePlanung();
 
 
@@ -1393,8 +1635,9 @@ async function starteSeite() {
 
 
         /*
-            Automatisch zur nächsten
-            eigenen Vorlesung springen.
+            Beim Start automatisch
+            zur nächsten eigenen
+            Vorlesung springen.
         */
 
         if (
@@ -1420,7 +1663,6 @@ async function starteSeite() {
 
     }
 
-
     catch (fehler) {
 
         document
@@ -1443,7 +1685,6 @@ async function starteSeite() {
             fehler
         );
     }
-
 }
 
 
